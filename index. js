@@ -1,0 +1,119 @@
+const { makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const pino = require('pino');
+
+async function iniciarBot() {
+    const { state, saveCreds } = await useMultiFileAuthState('sesion');
+
+    const sock = makeWASocket({
+        auth: state,
+        logger: pino({ level: 'silent' }),
+        browser: Browsers.macOS('Desktop')
+    });
+
+    if (!sock.authState.creds.registered) {
+        const telefono = "+50671531073"; // Tu número registrado
+        setTimeout(async () => {
+            try {
+                let codigo = await sock.requestPairingCode(telefono);
+                console.log("\n=========================================");
+                console.log(`🔑 CÓDIGO DE EMPAREJAMIENTO: ${codigo}`);
+                console.log("=========================================\n");
+            } catch (error) {
+                console.log("Error al pedir el código:", error);
+            }
+        }, 5000);
+    }
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === 'close') {
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) {
+                console.log("🔄 Reconectando bot...");
+                iniciarBot();
+            } else {
+                console.log("❌ Sesión cerrada.");
+            }
+        } else if (connection === 'open') {
+            console.log('🚀 ¡Bot conectado y listo para los comandos, mae!');
+        }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    // Sistema de escucha de mensajes con '#'
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        const m = messages[0];
+        if (!m.message || m.key.fromMe) return;
+
+        const texto = m.message.conversation || m.message.extendedTextMessage?.text || '';
+        const de = m.key.remoteJid;
+
+        // 1. Mostrar menú de comandos al escribir '#' o '#menu'
+        if (texto === '#' || texto.toLowerCase() === '#menu') {
+            const menuText = 
+`🤖 *MENÚ DE COMANDOS - TETITO BOT* 🤖\n\n` +
+`Para usar un comando, escribilo etiquetando o respondiendo al mensaje de la persona:\n\n` +
+`✨ *Lista disponible:*:\n` +
+`👉 *#abrazo @usuario* - Dale un abrazo bien llegao. 🤗\n` +
+`👉 *#beso @usuario* - Mandale un besito. 💋\n` +
+`👉 *#caricia @usuario* - Dale una carita o apapacho. ✨\n` +
+`👉 *#patada @usuario* - ¡Una patada voladora! 💥\n` +
+`👉 *#kill @usuario* - Mandalo al lobby de broma. 💀\n\n` +
+`¡Elegí tu comando y usalo con quien querás, mae! 🔥`;
+
+            await sock.sendMessage(de, { text: menuText });
+            return;
+        }
+
+        // 2. Ejecutar comandos si empiezan con #
+        if (texto.startsWith('#')) {
+            const partes = texto.split(' ');
+            const comando = partes[0].toLowerCase();
+            const menciones = m.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+            
+            switch (comando) {
+                case '#abrazo':
+                    await sock.sendMessage(de, { 
+                        text: `🤗 *¡Abrazo gigante!* Te mandaron un abrazo lleno de buena vibra. ✨`,
+                        mentions: menciones 
+                    });
+                    break;
+
+                case '#beso':
+                    await sock.sendMessage(de, { 
+                        text: `💋 *¡Muac!* Te mandaron un besito. 💖`,
+                        mentions: mencions 
+                    });
+                    break;
+
+                case '#caricia':
+                    await sock.sendMessage(de, { 
+                        text: `✨ *¡Apapacho / Caricia!* Te dieron una carita tierna. 🌸`,
+                        mentions: mencions 
+                    });
+                    break;
+
+                case '#patada':
+                    await sock.sendMessage(de, { 
+                        text: `💥 *¡K.O.!* Te metieron una patada voladora. 🥋`,
+                        mentions: mencions 
+                    });
+                    break;
+
+                case '#kill':
+                    await sock.sendMessage(de, { 
+                        text: `💀 *¡F en el chat!* Te mandaron al lobby de un un solo golpe. ⚰️`,
+                        mentions: mencions 
+                    });
+                    break;
+
+                default:
+                    await sock.sendMessage(de, { text: '❌ Ese comando no existe, mae. Escribí solo **#** para ver el menú.' });
+                    break;
+            }
+        }
+    });
+}
+
+iniciarBot();
