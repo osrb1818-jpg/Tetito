@@ -3,5 +3,6 @@ services:
     name: tetito-bot
     env: node
     plan: free
+    rootDir: ""
     buildCommand: npm install
     startCommand: npm start
