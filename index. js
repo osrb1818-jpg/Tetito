@@ -75,7 +75,7 @@ async function iniciarBot() {
             switch (comando) {
                 case '#abrazo':
                     await sock.sendMessage(de, { 
-                        text: `🤗 *¡Abrazo gigante!* Te mandaron un abrazo lleno de buena vibra. ✨`,
+                        text: `🤗 *¡Abrazo gigante!* Te mandaron un abrazo lleno de amor. ✨`,
                         mentions: menciones 
                     });
                     break;
