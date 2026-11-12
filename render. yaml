@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: tetito-bot
-    plan: free
-    rootDir: ""
-    buildCommand: npm install
-    startCommand: npm start
